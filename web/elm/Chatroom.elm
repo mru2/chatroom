@@ -7,6 +7,7 @@ import StartApp
 import Effects exposing (Effects, Never)
 import Task exposing (Task)
 import Json.Encode exposing (encode, string)
+import Json.Decode
 
 
 app : StartApp.App Model
@@ -89,25 +90,6 @@ updateContent content current_input =
   { current_input | content = content }
 
 
-
--- submitCurrentInput : CurrentInput -> Task Http.Error (List String)
--- submitCurrentInput current_input =
---   let
---     json =
---       Json.Encode.encode
---         0
---         (Json.Encode.object
---           [ ( "author", Json.Encode.string current_input.author )
---           , ( "content", Json.Encode.string current_input.content )
---           ]
---         )
---   in
---     Http.post
---       (Json.Decode.list Json.Decode.string)
---       "/room"
---       (Http.string json)
-
-
 update : Action -> Model -> ( Model, Effects Action )
 update action model =
   case action of
@@ -178,6 +160,23 @@ update action model =
 
 
 -- VIEW
+-- Apprently we need 20 lines to catch an enter key ...
+
+
+onEnter : Signal.Address a -> a -> Attribute
+onEnter address value =
+  on
+    "keydown"
+    (Json.Decode.customDecoder keyCode is13)
+    (\_ -> Signal.message address value)
+
+
+is13 : Int -> Result String ()
+is13 code =
+  if code == 13 then
+    Ok ()
+  else
+    Err "not the right key code"
 
 
 messageLine : Message -> Html
@@ -222,6 +221,7 @@ inputFooter address current_input =
             , class "form-control"
             , value current_input.content
             , on "input" targetValue (Signal.message address << UpdateContent)
+            , onEnter address SubmitMessage
             ]
             []
         ]
@@ -242,7 +242,7 @@ view address model =
     [ id "chatroom" ]
     [ div
         [ id "messages", class "container-fluid" ]
-        (List.map messageLine model.messages)
+        (List.map messageLine (List.reverse model.messages))
     , div
         [ id "footer" ]
         [ div
